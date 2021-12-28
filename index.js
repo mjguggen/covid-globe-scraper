@@ -40,7 +40,7 @@ const getAllFiles = async () => {
         owner,
         repo,
         path: 'csse_covid_19_data/csse_covid_19_daily_reports'
-      }).then(res => res.data.filter(i => !i.name.endsWith('2020.csv')))
+      }).then(res => res.data.filter(i => Boolean(i.name.contains('2021') || i.name.contains('2022'))))
 
       await Promise.all(githubFiles.map(async ({name, sha}) => {
         try {
