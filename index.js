@@ -6,6 +6,8 @@ const { throttling } = require("@octokit/plugin-throttling")
 const Csv = require('./models/Csv')
 const MyOctokit = Octokit.plugin(throttling)
 
+connectDB()
+
 const octo = new MyOctokit({
   throttle: {
     onRateLimit: (retryAfter, options, octokit) => {
@@ -87,7 +89,6 @@ const getAllFiles = async () => {
     console.log("Data scrape done")
 }
 
-connectDB()
 
 cron.schedule(
     '0 0 */1 * * *', 
