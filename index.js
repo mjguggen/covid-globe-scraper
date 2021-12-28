@@ -1,10 +1,14 @@
-require('dotenv').config()
-const connectDB = require('./mongo/db')
-const cron = require('node-cron')
-const { Octokit } = require("@octokit/rest")
-const { throttling } = require("@octokit/plugin-throttling")
-const Csv = require('./models/Csv')
-const MyOctokit = Octokit.plugin(throttling)
+//require('dotenv').config()
+import dotenv from 'dotenv'
+dotenv.config()
+import connectDB from './mongo/db.js'
+import cron from 'node-cron'
+import octokitRest from "@octokit/rest"
+import pluginThrottling from "@octokit/plugin-throttling"
+import ParsedCsv from './models/ParsedCsv.js'
+const MyOctokit = octokitRest.Octokit.plugin(pluginThrottling.throttling)
+import {csvParse} from 'd3-dsv'
+import moment from 'moment'
 
 connectDB()
 
@@ -33,62 +37,104 @@ const owner = 'CSSEGISandData'
 const repo = 'COVID-19'
 
 const getAllFiles = async () => {
-    console.log('Initializing data scrape')
+  console.log('Initializing data scrape')
 
-    try {
-      const githubFiles = await octo.repos.getContent({
-        owner,
-        repo,
-        path: 'csse_covid_19_data/csse_covid_19_daily_reports'
-      }).then(res => res.data.filter(i => Boolean(i.name.contains('2021') || i.name.contains('2022'))))
+  try {
+    const githubFiles = await octo.repos.getContent({
+      owner,
+      repo,
+      path: 'csse_covid_19_data/csse_covid_19_daily_reports'
+    }).then(res => res.data.filter(i =>  
+      i.name.includes('2021') 
+      || i.name.includes('2022')
+    ))
 
-      await Promise.all(githubFiles.map(async ({name, sha}) => {
-        try {
-          const data = await octo.git.getBlob({
-            owner,
-            repo,
-            file_sha: sha,
-            mediaType: {
-              format: 'raw'
-            }
-          }).then(async res => res.data)
-
-          const date = name.replace('.csv', "")
-
-          const output = {
-            date,
-            data
+    await Promise.all(githubFiles.map(async ({name, sha}) => {
+      try {
+        const data = await octo.git.getBlob({
+          owner,
+          repo,
+          file_sha: sha,
+          mediaType: {
+            format: 'raw'
           }
+        }).then(res => {
+          const parsedData = csvParse(res.data, ({
+            Country_Region,  
+            Last_Update, 
+            Lat,
+            Long_,
+            Confirmed,
+            Deaths,
+            Combined_Key,
+          }) =>  ({
+              lat: +Lat,
+              lng: +Long_,
+              confirmed: +Confirmed,
+              deaths: +Deaths,
+              fullLocation: Combined_Key,
+              country: Country_Region,
+              lastUpdate: Last_Update
+            }))
 
-          const exists = await Csv.findOne({
-            date
-          })
+          return parsedData
+        })
+          
+        const date = name.replace('.csv', "")
+        const lastUpdate = moment.max(data.map(i => moment(i.latestUpdate))).toString()
 
-          if (exists) {
-            if (exists.data !== data) {
-              await Csv.findOneAndUpdate({
-                date
-              }, output)
-            }
-          } else {
-            const newCsv = new Csv(output)
+        const filteredData = data.map(({              
+          lat,
+          lng,
+          confirmed,
+          deaths,
+          fullLocation,
+          country
+        }) => ({
+          lat,
+          lng,
+          confirmed,
+          deaths,
+          fullLocation,
+          country
+        }))
 
-            console.log('new csv data', output)
-
-            await newCsv.save()
-          }
-        } catch (err) {
-          console.log(err.message)
+        const output = {
+          date,
+          lastUpdate,
+          data: filteredData
         }
 
-      }))
-    } catch (err) {
-      console.log(err.message)
-    }
+        const exists = await ParsedCsv.findOne({
+          date
+        })
 
-    console.log("Data scrape done")
+        if (exists) {
+          const isNewDate = moment(lastUpdate).isAfter(existing.lastUpdate)
+
+          if (isNewDate) {
+            console.log('updating file', date)
+            await ParsedCsv.findOneAndUpdate({
+              date
+            }, output)
+          }
+        } else {
+          const newCsv = new ParsedCsv(output)
+
+          console.log('new csv data', date)
+
+          await newCsv.save()
+        }
+      } catch (err) {
+        console.log(err.message)
+      }
+    }))
+  } catch (err) {
+    console.log(err.message)
+  }
+
+  console.log("Data scrape done")
 }
-
 
 cron.schedule(
     '0 0 */1 * * *', 
