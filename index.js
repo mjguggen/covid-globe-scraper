@@ -7,10 +7,8 @@ import octokitRest from "@octokit/rest"
 import pluginThrottling from "@octokit/plugin-throttling"
 import ParsedCsv from './models/ParsedCsv.js'
 const MyOctokit = octokitRest.Octokit.plugin(pluginThrottling.throttling)
-import {csvParse} from 'd3-dsv'
+import {csvParse, csvFormat} from 'd3-dsv'
 import moment from 'moment'
-
-connectDB()
 
 const octo = new MyOctokit({
   throttle: {
@@ -40,6 +38,8 @@ const getAllFiles = async () => {
   console.log('Initializing data scrape')
 
   try {
+    await connectDB()
+
     const githubFiles = await octo.repos.getContent({
       owner,
       repo,
@@ -83,21 +83,12 @@ const getAllFiles = async () => {
         const date = name.replace('.csv', "")
         const lastUpdate = moment.max(data.map(i => moment(i.latestUpdate))).toString()
 
-        const filteredData = data.map(({              
-          lat,
-          lng,
-          confirmed,
-          deaths,
-          fullLocation,
-          country
-        }) => ({
-          lat,
-          lng,
-          confirmed,
-          deaths,
-          fullLocation,
-          country
-        }))
+        const filteredData = csvFormat(
+          data.map(({     
+            lastUpdated,
+            ...otherProps         
+          }) => otherProps)
+        )
 
         const output = {
           date,
@@ -110,7 +101,7 @@ const getAllFiles = async () => {
         })
 
         if (exists) {
-          const isNewDate = moment(lastUpdate).isAfter(existing.lastUpdate)
+          const isNewDate = moment(lastUpdate).isAfter(exists.lastUpdate)
 
           if (isNewDate) {
             console.log('updating file', date)

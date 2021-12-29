@@ -11,9 +11,9 @@ const ParsedCsv = new Schema({
         required: true,
     },
     data: {
-        type: Schema.Types.Mixed,
+        type: String,
         required: true
     }
 })
 
-export default mongoose.model('parsedCsv', ParsedCsv)
+export default mongoose.model('newcsv', ParsedCsv)
