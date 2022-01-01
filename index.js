@@ -2,7 +2,6 @@
 import dotenv from 'dotenv'
 dotenv.config()
 import connectDB from './mongo/db.js'
-import cron from 'node-cron'
 import octokitRest from "@octokit/rest"
 import pluginThrottling from "@octokit/plugin-throttling"
 import ParsedCsv from './models/ParsedCsv.js'
