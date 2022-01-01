@@ -81,7 +81,7 @@ const getAllFiles = async () => {
         })
           
         const date = name.replace('.csv', "")
-        const lastUpdate = moment.max(data.map(i => moment(i.latestUpdate))).toString()
+        const lastUpdate = moment.max(data.map(i => moment(i.latestUpdate, "MM-DD-YYYY"))).toString()
 
         const filteredData = csvFormat(
           data.map(({     
@@ -101,7 +101,7 @@ const getAllFiles = async () => {
         })
 
         if (exists) {
-          const isNewDate = moment(lastUpdate).isAfter(exists.lastUpdate)
+          const isNewDate = moment(lastUpdate).isAfter(exists.lastUpdate, "MM-DD-YYYY")
 
           if (isNewDate) {
             console.log('updating file', date)
@@ -127,11 +127,4 @@ const getAllFiles = async () => {
   console.log("Data scrape done")
 }
 
-cron.schedule(
-    '0 0 */1 * * *', 
-    async () => {
-        await getAllFiles()
-    }, {
-      timezone: "America/New_York"
-    }
-)
+getAllFiles()
