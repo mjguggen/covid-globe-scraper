@@ -66,6 +66,8 @@ const getAllFiles = async () => {
             Confirmed,
             Deaths,
             Combined_Key,
+            Incident_Rate,
+            Case_Fatality_Ratio
           }) =>  ({
               lat: +Lat,
               lng: +Long_,
@@ -73,7 +75,9 @@ const getAllFiles = async () => {
               deaths: +Deaths,
               fullLocation: Combined_Key,
               country: Country_Region,
-              lastUpdate: Last_Update
+              lastUpdate: Last_Update,
+              incidentRate: +Incident_Rate,
+              caseFatality: +Case_Fatality_Ratio
             }))
 
           return parsedData
@@ -86,8 +90,9 @@ const getAllFiles = async () => {
           data.map(({     
             lastUpdated,
             ...otherProps         
-          }) => otherProps)
+          }) => otherProps).filter(i => i.lat !== 0 && i.lng !== 0)
         )
+
 
         const output = {
           date,
@@ -100,14 +105,9 @@ const getAllFiles = async () => {
         })
 
         if (exists) {
-          const isNewDate = moment(lastUpdate).isAfter(exists.lastUpdate, "MM-DD-YYYY")
-
-          if (isNewDate) {
-            console.log('updating file', date)
-            await ParsedCsv.findOneAndUpdate({
-              date
-            }, output)
-          }
+          await ParsedCsv.findOneAndUpdate({
+            date
+          }, output)
         } else {
           const newCsv = new ParsedCsv(output)
 
